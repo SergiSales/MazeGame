@@ -4,6 +4,7 @@ using System.Collections.Generic;
 
 public class MazeGenerator : MonoBehaviour
 {
+    //TODO: Change the Maze when the player moves
     public MazeNode nodePrefab;
     public Vector2Int mazeSize;
 

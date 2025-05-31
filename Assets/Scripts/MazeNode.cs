@@ -8,7 +8,6 @@ enum NodeState
     PlayerVisited,
     PlayerCurrent,
     PlayerHidden
-    
 }
 public class MazeNode : MonoBehaviour
 {
