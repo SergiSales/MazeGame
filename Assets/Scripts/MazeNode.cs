@@ -2,9 +2,6 @@ using UnityEngine;
 
 enum NodeState
 {
-    Available,
-    Current,
-    Completed,
     PlayerVisited,
     PlayerCurrent,
     PlayerHidden
@@ -13,6 +10,13 @@ public class MazeNode : MonoBehaviour
 {
     public GameObject[] walls;
     public MeshRenderer floor;
+
+    public Vector2Int coords;
+    
+    private void Start()
+    {
+        coords = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.z));
+    }
 
 
     public void RemoveWall(int wallIndex)
@@ -23,15 +27,16 @@ public class MazeNode : MonoBehaviour
     {
         switch (state)
         {
-            case (int)NodeState.Available:
-                floor.material.color = Color.white;
+            case (int)NodeState.PlayerHidden:
+                floor.material.color = Color.black;
                 break;
-            case (int)NodeState.Current:
-                floor.material.color = Color.yellow;
+            case (int)NodeState.PlayerCurrent:
+                floor.material.color = new Color(0.4588f, 0.6f, 0.294f);
                 break;
-            case (int)NodeState.Completed:
+            case (int)NodeState.PlayerVisited:
                 floor.material.color = Color.blue;
                 break;
         }
     }
+
 }

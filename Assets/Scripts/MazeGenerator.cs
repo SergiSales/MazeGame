@@ -8,15 +8,17 @@ public class MazeGenerator : MonoBehaviour
     public MazeNode nodePrefab;
     public Vector2Int mazeSize;
 
+    public MazeNode scriptMaze;
+
+    public GameObject player;
     private void Start()
     {
-        StartCoroutine(GenerateMaze(mazeSize));
+        GenerateMaze(mazeSize);
     }
 
-    IEnumerator GenerateMaze(Vector2Int size)
+    void GenerateMaze(Vector2Int size)
     {
         List<MazeNode> nodes = new List<MazeNode>();
-
         for (int x = 0; x < size.x; x++)
         {
             for (int y = 0; y < size.y; y++)
@@ -24,104 +26,65 @@ public class MazeGenerator : MonoBehaviour
                 Vector3 nodePos = new Vector3(x - (size.x / 2f), 0, y - (size.y / 2f));
                 MazeNode newNode = Instantiate(nodePrefab, nodePos, Quaternion.identity, transform);
                 nodes.Add(newNode);
-
-
             }
         }
 
-        List<MazeNode> currentPath = new List<MazeNode>();
-        List<MazeNode> completedNodes = new List<MazeNode>();
+        HashSet<MazeNode> visited = new HashSet<MazeNode>();
+        List<(MazeNode node, MazeNode neighbor, int direction)> walls = new List<(MazeNode, MazeNode, int)>();
 
+        int GetIndex(int x, int y) => x * size.y + y;
 
-        currentPath.Add(nodes[Random.Range(0, nodes.Count)]);
-        currentPath[0].SetState((int)NodeState.Current);
-        Debug.Log(nodes.Count);
+        int nodeNumber = Random.Range(0, nodes.Count);
+        MazeNode StartNode = nodes[nodeNumber];
 
+        Instantiate(player, StartNode.transform.position,Quaternion.identity, transform);
 
-        while (completedNodes.Count < nodes.Count)
+        visited.Add(StartNode);
+
+        int[,] directions = { { 1, 0, 1, 0 }, { -1, 0, 0, 1 }, { 0, 1, 3, 2 }, { 0, -1, 2, 3 } }; // dx, dy, neighborWall, currentWall
+
+        void AddWalls(MazeNode from, int x, int y)
         {
-
-            List<int> possibleNextNodes = new List<int>();
-            List<int> possibleDirections = new List<int>();
-
-            int currentNodeIndex = nodes.IndexOf(currentPath[currentPath.Count - 1]);
-            int currentNodeX = currentNodeIndex / size.x;
-            int currentNodeY = currentNodeIndex % size.y;
-
-            if (currentNodeX < size.x - 1)
+            for (int i = 0; i < 4; i++)
             {
-                //Derecha
-                if (!completedNodes.Contains(nodes[currentNodeIndex + size.y]) && !currentPath.Contains(nodes[currentNodeIndex + size.y]))
+                int nx = x + directions[i, 0];
+                int ny = y + directions[i, 1];
+
+                if (nx >= 0 && nx < size.x && ny >= 0 && ny < size.y)
                 {
-                    possibleDirections.Add(1);
-                    possibleNextNodes.Add(currentNodeIndex + size.y);
+                    MazeNode neighbor = nodes[GetIndex(nx, ny)];
+                    if (!visited.Contains(neighbor))
+                    {
+                        walls.Add((from, neighbor, i));
+                    }
                 }
             }
-            if (currentNodeX > 0)
-            {
-                //Izquierda
-                if (!completedNodes.Contains(nodes[currentNodeIndex - size.y]) && !currentPath.Contains(nodes[currentNodeIndex - size.y]))
-                {
-                    possibleDirections.Add(2);
-                    possibleNextNodes.Add(currentNodeIndex - size.y);
-                }
-            }
-            if (currentNodeY < size.y - 1)
-            {
-                //Arriba
-                if (!completedNodes.Contains(nodes[currentNodeIndex + 1]) && !currentPath.Contains(nodes[currentNodeIndex + 1]))
-                {
-                    possibleDirections.Add(3);
-                    possibleNextNodes.Add(currentNodeIndex + 1);
-                }
-            }
-            if (currentNodeY > 0)
-            {
-                //Abajo
-                if (!completedNodes.Contains(nodes[currentNodeIndex - 1]) && !currentPath.Contains(nodes[currentNodeIndex - 1]))
-                {
-                    possibleDirections.Add(4);
-                    possibleNextNodes.Add(currentNodeIndex - 1);
-                }
-            }
-
-            if (possibleDirections.Count > 0)
-            {
-                int chosenDirection = Random.Range(0, possibleDirections.Count);
-                MazeNode chosenNode = nodes[possibleNextNodes[chosenDirection]];
-
-                switch (possibleDirections[chosenDirection])
-                {
-                    case 1:
-                        chosenNode.RemoveWall(1);
-                        currentPath[currentPath.Count - 1].RemoveWall(0);
-                        break;
-                    case 2:
-                        chosenNode.RemoveWall(0);
-                        currentPath[currentPath.Count - 1].RemoveWall(1);
-                        break;
-                    case 3:
-                        chosenNode.RemoveWall(3);
-                        currentPath[currentPath.Count - 1].RemoveWall(2);
-                        break;
-                    case 4:
-                        chosenNode.RemoveWall(2);
-                        currentPath[currentPath.Count - 1].RemoveWall(3);
-                        break;
-                }
-
-                currentPath.Add(chosenNode);
-                chosenNode.SetState((int)NodeState.Current);
-            }
-            else
-            {
-                completedNodes.Add(currentPath[currentPath.Count - 1]);
-                currentPath[currentPath.Count - 1].SetState((int)NodeState.Completed);
-                currentPath.RemoveAt(currentPath.Count - 1);
-            }
-            yield return new WaitForSeconds(0.05f);
         }
-        
-        
+
+        int startX = nodes.IndexOf(StartNode) / size.y;
+        int startY = nodes.IndexOf(StartNode) % size.y;
+        AddWalls(StartNode, startX, startY);
+
+        StartNode.SetState((int)NodeState.PlayerCurrent);
+
+        while (walls.Count > 0)
+        {
+            int randIndex = Random.Range(0, walls.Count);
+            var (current, neighbor, dir) = walls[randIndex];
+            walls.RemoveAt(randIndex);
+
+            if (visited.Contains(neighbor)) continue;
+
+            visited.Add(neighbor);
+            neighbor.SetState((int)NodeState.PlayerHidden);
+
+            // Remove walls between current and neighbor
+            neighbor.RemoveWall(directions[dir, 2]);
+            current.RemoveWall(directions[dir, 3]);
+
+            int nx = nodes.IndexOf(neighbor) / size.y;
+            int ny = nodes.IndexOf(neighbor) % size.y;
+            AddWalls(neighbor, nx, ny);
+        }
     }
 }
